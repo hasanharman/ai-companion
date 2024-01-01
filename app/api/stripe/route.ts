@@ -27,6 +27,7 @@ export async function GET() {
         customer: userSubscription.stripeCustomerId,
         return_url: settingsUrl,
       });
+
       return new NextResponse(JSON.stringify({ url: stripeSession.url }));
     }
 
@@ -42,8 +43,8 @@ export async function GET() {
           price_data: {
             currency: "USD",
             product_data: {
-              name: "Premium Subscription",
-              description: "Create limitless custom AI companion",
+              name: "Companion Pro",
+              description: "Create Custom AI Companions",
             },
             unit_amount: 999,
             recurring: {
@@ -57,8 +58,10 @@ export async function GET() {
         userId,
       },
     });
+
+    return new NextResponse(JSON.stringify({ url: stripeSession.url }));
   } catch (error) {
-    console.log("[STRIPE ERROR]", error);
-    return new NextResponse("Internal Server Error", { status: 500 });
+    console.log("[STRIPE]", error);
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }
