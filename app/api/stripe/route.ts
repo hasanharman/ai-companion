@@ -22,44 +22,42 @@ export async function GET() {
       },
     });
 
-    let stripeSession;
-
     if (userSubscription && userSubscription.stripeCustomerId) {
-      // Use Billing Portal for existing customers
-      stripeSession = await stripe.billingPortal.sessions.create({
+      const stripeSession = await stripe.billingPortal.sessions.create({
         customer: userSubscription.stripeCustomerId,
         return_url: settingsUrl,
       });
-    } else {
-      // Create a new checkout session for new customers
-      stripeSession = await stripe.checkout.sessions.create({
-        success_url: settingsUrl,
-        cancel_url: settingsUrl,
-        payment_method_types: ["card"],
-        mode: "subscription",
-        billing_address_collection: "auto",
-        customer_email: user.emailAddresses[0].emailAddress,
-        line_items: [
-          {
-            price_data: {
-              currency: "USD",
-              product_data: {
-                name: "Companion Pro",
-                description: "Create Custom AI Companions",
-              },
-              unit_amount: 999,
-              recurring: {
-                interval: "month",
-              },
-            },
-            quantity: 1,
-          },
-        ],
-        metadata: {
-          userId,
-        },
-      });
+
+      return new NextResponse(JSON.stringify({ url: stripeSession.url }));
     }
+
+    const stripeSession = await stripe.checkout.sessions.create({
+      success_url: settingsUrl,
+      cancel_url: settingsUrl,
+      payment_method_types: ["card"],
+      mode: "subscription",
+      billing_address_collection: "auto",
+      customer_email: user.emailAddresses[0].emailAddress,
+      line_items: [
+        {
+          price_data: {
+            currency: "USD",
+            product_data: {
+              name: "Companion Pro",
+              description: "Create Custom AI Companions",
+            },
+            unit_amount: 999,
+            recurring: {
+              interval: "month",
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        userId,
+      },
+    });
 
     return new NextResponse(JSON.stringify({ url: stripeSession.url }));
   } catch (error) {
