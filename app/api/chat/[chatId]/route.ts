@@ -1,5 +1,6 @@
+import dotenv from "dotenv";
 import { StreamingTextResponse, LangChainStream } from "ai";
-import { auth, currentUser } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs";
 import { Replicate } from "langchain/llms/replicate";
 import { CallbackManager } from "langchain/callbacks";
 import { NextResponse } from "next/server";
@@ -8,19 +9,21 @@ import { MemoryManager } from "@/lib/memory";
 import { rateLimit } from "@/lib/rate-limit";
 import prismadb from "@/lib/prismadb";
 
+dotenv.config({ path: `.env` });
+
 export async function POST(
-  req: Request,
+  request: Request,
   { params }: { params: { chatId: string } }
 ) {
   try {
-    const { prompt } = await req.json();
+    const { prompt } = await request.json();
     const user = await currentUser();
 
-    if (!user || !user.id || !user.firstName) {
+    if (!user || !user.firstName || !user.id) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const identifier = req.url + "-" + user.id;
+    const identifier = request.url + "-" + user.id;
     const { success } = await rateLimit(identifier);
 
     if (!success) {
@@ -30,7 +33,6 @@ export async function POST(
     const companion = await prismadb.companion.update({
       where: {
         id: params.chatId,
-        userId: user.id,
       },
       data: {
         messages: {
@@ -51,23 +53,26 @@ export async function POST(
     const companion_file_name = name + ".txt";
 
     const companionKey = {
-      companionName: name,
+      companionName: name!,
       userId: user.id,
-      modelName: "llame2-13b",
+      modelName: "llama2-13b",
     };
-
     const memoryManager = await MemoryManager.getInstance();
-    const records = await memoryManager.readLatestHistory(companionKey);
 
+    const records = await memoryManager.readLatestHistory(companionKey);
     if (records.length === 0) {
       await memoryManager.seedChatHistory(companion.seed, "\n\n", companionKey);
     }
-
     await memoryManager.writeToHistory("User: " + prompt + "\n", companionKey);
+
+    // Query Pinecone
 
     const recentChatHistory = await memoryManager.readLatestHistory(
       companionKey
     );
+
+    // Right now the preamble is included in the similarity search, but that
+    // shouldn't be an issue
 
     const similarDocs = await memoryManager.vectorSearch(
       recentChatHistory,
@@ -75,13 +80,11 @@ export async function POST(
     );
 
     let relevantHistory = "";
-
     if (!!similarDocs && similarDocs.length !== 0) {
       relevantHistory = similarDocs.map((doc) => doc.pageContent).join("\n");
     }
-
     const { handlers } = LangChainStream();
-
+    // Call Replicate for inference
     const model = new Replicate({
       model:
         "a16z-infra/llama-2-13b-chat:df7690f1994d94e96ad9d568eac121aecf50684a0b0963b25a41cc40061269e5",
@@ -99,15 +102,15 @@ export async function POST(
       await model
         .call(
           `
-          ONLY generate plain sentences without prefix of who is speaking. DO NOT use ${companion.name}: prefix. 
-  
-          ${companion.instructions}
-  
-          Below are relevant details about ${companion.name}'s past and the conversation you are in.
-          ${relevantHistory}
-  
-  
-          ${recentChatHistory}\n${companion.name}:`
+        ONLY generate plain sentences without prefix of who is speaking. DO NOT use ${companion.name}: prefix. 
+
+        ${companion.instructions}
+
+        Below are relevant details about ${companion.name}'s past and the conversation you are in.
+        ${relevantHistory}
+
+
+        ${recentChatHistory}\n${companion.name}:`
         )
         .catch(console.error)
     );
@@ -143,7 +146,6 @@ export async function POST(
 
     return new StreamingTextResponse(s);
   } catch (error) {
-    console.log("[CHAT_POST]", error);
-    return new NextResponse("Internal error", { status: 500 });
+    return new NextResponse("Internal Error", { status: 500 });
   }
 }
