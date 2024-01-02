@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import { ProModal } from "@/components/pro-modal";
+import Head from "next/head";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,6 +23,14 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
+      <Head>
+        <title>Head Museum</title>
+        <meta property="og:title" content="Head Museum" key="title" />
+        <meta
+          name="description"
+          content="A platform that you can create your own head museum and talk to them."
+        />
+      </Head>
       <html lang="en" suppressHydrationWarning>
         <body className={cn("bg-secondary", inter.className)}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
