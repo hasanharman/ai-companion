@@ -4,6 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { Menu, Sparkles } from "lucide-react";
 import { Poppins } from "next/font/google";
 import Link from "next/link";
+import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,13 @@ export const Navbar = ({ isPro }: NavbarProps) => {
     <div className="fixed w-full z-50 flex justify-between items-center py-2 px-4 border-b border-primary/10 bg-secondary h-16">
       <div className="flex items-center">
         <MobileSidebar isPro={isPro} />
+        <Image
+          src="/logo.svg" // Adjust the path accordingly
+          alt="Head Museum Logo"
+          width={32}
+          height={32}
+          className="mr-2"
+        />
         <Link href="/">
           <h1
             className={cn(
